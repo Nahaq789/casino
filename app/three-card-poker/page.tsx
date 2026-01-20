@@ -1,24 +1,42 @@
-'use client'
+'use client';
 
 import React, { useState } from 'react';
 import { Spade, Heart, Diamond, Club } from 'lucide-react';
 
-const SUITS = ['♠', '♥', '♦', '♣'];
-const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-const RANK_VALUES = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
+type Suit = '♠' | '♥' | '♦' | '♣';
+type Rank = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
 
-const ThreeCardPoker = () => {
-  const [chips, setChips] = useState(100000);
-  const [ante, setAnte] = useState(1000);
-  const [playerCards, setPlayerCards] = useState([]);
-  const [dealerCards, setDealerCards] = useState([]);
-  const [gamePhase, setGamePhase] = useState('betting'); // betting, dealt, result
-  const [message, setMessage] = useState('アンティを設定してディールしてください');
-  const [showDealerCards, setShowDealerCards] = useState(false);
-  const [lastResult, setLastResult] = useState(null);
+interface Card {
+  suit: Suit;
+  rank: Rank;
+}
 
-  const createDeck = () => {
-    const deck = [];
+interface HandRank {
+  rank: number;
+  name: string;
+  value: number;
+}
+
+type GamePhase = 'betting' | 'dealt' | 'result';
+
+const SUITS: Suit[] = ['♠', '♥', '♦', '♣'];
+const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const RANK_VALUES: Record<Rank, number> = {
+  '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+  '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
+};
+
+const ThreeCardPoker: React.FC = () => {
+  const [chips, setChips] = useState<number>(100000);
+  const [ante, setAnte] = useState<number>(1000);
+  const [playerCards, setPlayerCards] = useState<Card[]>([]);
+  const [dealerCards, setDealerCards] = useState<Card[]>([]);
+  const [gamePhase, setGamePhase] = useState<GamePhase>('betting');
+  const [message, setMessage] = useState<string>('アンティを設定してディールしてください');
+  const [showDealerCards, setShowDealerCards] = useState<boolean>(false);
+
+  const createDeck = (): Card[] => {
+    const deck: Card[] = [];
     for (const suit of SUITS) {
       for (const rank of RANKS) {
         deck.push({ suit, rank });
@@ -27,7 +45,7 @@ const ThreeCardPoker = () => {
     return deck;
   };
 
-  const shuffleDeck = (deck) => {
+  const shuffleDeck = (deck: Card[]): Card[] => {
     const newDeck = [...deck];
     for (let i = newDeck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -36,7 +54,7 @@ const ThreeCardPoker = () => {
     return newDeck;
   };
 
-  const getHandRank = (cards) => {
+  const getHandRank = (cards: Card[]): HandRank => {
     const ranks = cards.map(c => RANK_VALUES[c.rank]).sort((a, b) => b - a);
     const suits = cards.map(c => c.suit);
     const isFlush = suits.every(s => s === suits[0]);
@@ -62,7 +80,7 @@ const ThreeCardPoker = () => {
     return { rank: 0, name: 'ハイカード', value: ranks[0] * 1000 + ranks[1] * 10 + ranks[2] };
   };
 
-  const dealCards = () => {
+  const dealCards = (): void => {
     if (ante > chips) {
       setMessage('所持金が足りません');
       return;
@@ -77,11 +95,11 @@ const ThreeCardPoker = () => {
     setChips(chips - ante);
   };
 
-  const fold = () => {
+  const fold = (): void => {
     setGamePhase('result');
     setShowDealerCards(true);
-    setMessage(`フォールドしました。${ante.toLocaleString()}円を失いました。`);
-    setLastResult({ type: 'fold', amount: -ante });
+    setMessage(`フォールドしました。アンティ ${ante.toLocaleString()}円を失いました。`);
+
     setTimeout(() => {
       setGamePhase('betting');
       setPlayerCards([]);
@@ -90,13 +108,15 @@ const ThreeCardPoker = () => {
     }, 3000);
   };
 
-  const play = () => {
+  const play = (): void => {
     if (ante > chips) {
       setMessage('所持金が足りません');
       return;
     }
 
-    setChips(chips - ante);
+    // プレイベット分を引く
+    const newChips = chips - ante;
+    setChips(newChips);
     setShowDealerCards(true);
     setGamePhase('result');
 
@@ -108,26 +128,32 @@ const ThreeCardPoker = () => {
     let resultMessage = '';
 
     if (!dealerQualifies) {
-      winAmount = ante * 2;
-      resultMessage = `ディーラー不成立。アンティ配当を獲得!(+${winAmount.toLocaleString()}円)`;
+      // ディーラー不成立：アンティのみ2倍返却、プレイベットは返却
+      winAmount = ante * 3; // ante(最初) + ante(プレイ) + ante(配当)
+      resultMessage = `ディーラー不成立。アンティ配当獲得! (+${ante.toLocaleString()}円)`;
     } else if (playerHand.rank > dealerHand.rank || (playerHand.rank === dealerHand.rank && playerHand.value > dealerHand.value)) {
+      // 勝利：アンティとプレイベット両方に配当
       let bonus = 0;
       if (playerHand.rank === 5) bonus = ante * 5;
       else if (playerHand.rank === 4) bonus = ante * 4;
       else if (playerHand.rank === 3) bonus = ante * 1;
 
-      winAmount = ante * 4 + bonus;
-      resultMessage = `勝利! ${playerHand.name} vs ${dealerHand.name} (+${winAmount.toLocaleString()}円${bonus > 0 ? ` ボーナス含む` : ''})`;
+      winAmount = ante * 4 + bonus; // ante*2(元金) + ante*2(配当) + bonus
+      const profit = winAmount - ante * 2;
+      resultMessage = `勝利! ${playerHand.name} vs ${dealerHand.name} (+${profit.toLocaleString()}円${bonus > 0 ? ` ボーナス含む` : ''})`;
     } else if (playerHand.rank === dealerHand.rank && playerHand.value === dealerHand.value) {
+      // 引き分け：ベット返却
       winAmount = ante * 2;
       resultMessage = `引き分け。ベット返却 ${playerHand.name}`;
     } else {
-      resultMessage = `敗北... ${playerHand.name} vs ${dealerHand.name} (-${(ante * 2).toLocaleString()}円)`;
+      // 敗北：没収（winAmount = 0）
+      winAmount = 0;
+      const totalLost = ante * 2;
+      resultMessage = `敗北... ${playerHand.name} vs ${dealerHand.name} (-${totalLost.toLocaleString()}円)`;
     }
 
-    setChips(chips + winAmount);
+    setChips(newChips + winAmount);
     setMessage(resultMessage);
-    setLastResult({ type: winAmount > ante * 2 ? 'win' : winAmount === ante * 2 ? 'tie' : 'lose', amount: winAmount - ante * 2 });
 
     setTimeout(() => {
       setGamePhase('betting');
@@ -137,14 +163,13 @@ const ThreeCardPoker = () => {
     }, 4000);
   };
 
-  const CardComponent = ({ card, hidden }) => {
-    const getSuitIcon = (suit) => {
+  const CardComponent: React.FC<{ card: Card; hidden: boolean }> = ({ card, hidden }) => {
+    const getSuitIcon = (suit: Suit) => {
       switch (suit) {
         case '♠': return <Spade className="w-6 h-6" />;
         case '♥': return <Heart className="w-6 h-6" />;
         case '♦': return <Diamond className="w-6 h-6" />;
         case '♣': return <Club className="w-6 h-6" />;
-        default: return null;
       }
     };
 
@@ -183,10 +208,9 @@ const ThreeCardPoker = () => {
               <span className="font-bold">所持金:</span>
               <input
                 type="number"
-                min="1000"
                 step="1000"
                 value={chips}
-                onChange={(e) => setChips(Math.max(1000, parseInt(e.target.value) || 1000))}
+                onChange={(e) => setChips(Math.max(0, parseInt(e.target.value), 0))}
                 className="px-3 py-1 rounded border-2 border-yellow-400 w-32 text-gray-900"
                 disabled={gamePhase !== 'betting'}
               />
@@ -271,14 +295,15 @@ const ThreeCardPoker = () => {
 
         {/* ルール説明 */}
         <div className="bg-white rounded-lg p-6 shadow-xl">
-          <h3 className="text-xl font-bold mb-3">ルール</h3>
-          <ul className="text-sm space-y-1">
+          <h3 className="text-xl text-black font-bold mb-3">ルール</h3>
+          <ul className="text-sm text-black space-y-1">
             <li>• 所持金は自由に変更可能(最低1,000円、ゲーム中は変更不可)</li>
             <li>• アンティを賭けてディールボタンを押すとゲーム開始(最低1,000円)</li>
             <li>• カードを見て、フォールド(降りる)かプレイ(続ける)を選択</li>
-            <li>• プレイを選ぶとアンティと同額の追加ベットが必要</li>
+            <li>• プレイを選ぶとアンティと同額の追加ベットが必要(合計アンティ×2)</li>
             <li>• ディーラーはQ以上で勝負成立(クオリファイ)</li>
             <li>• 役の強さ: ストレートフラッシュ &gt; スリーカード &gt; ストレート &gt; フラッシュ &gt; ワンペア &gt; ハイカード</li>
+            <li>• 配当: 勝利時アンティ+プレイベット両方に1:1配当、ボーナス配当あり</li>
           </ul>
         </div>
       </div>
