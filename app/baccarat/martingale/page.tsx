@@ -10,6 +10,7 @@ import {
   SimulationResults,
   RoundHistory,
 } from "../type";
+import { playRound } from "../play";
 
 // 定数
 const INITIAL_BALANCE = 100000;
@@ -24,14 +25,6 @@ const STRATEGIES: Strategy[] = [
   { id: "alternate", name: "プレイヤー⇔バンカー交互" },
   { id: "ppbb", name: "PP→BB（2回ずつ交互）" },
 ];
-
-// ユーティリティ関数
-const playRound = (): GameResult => {
-  const rand = Math.random() * 100;
-  if (rand < 45.86) return "banker";
-  if (rand < 90.48) return "player";
-  return "tie";
-};
 
 const getBetTarget = (
   strategy: StrategyId,
