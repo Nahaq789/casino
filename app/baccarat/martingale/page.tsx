@@ -2,40 +2,14 @@
 "use client";
 
 import { useState } from "react";
-
-// 型定義
-type BetTarget = "banker" | "player";
-type GameResult = "banker" | "player" | "tie";
-type StrategyId =
-  | "bankerOnly"
-  | "playerOnly"
-  | "followWinner"
-  | "alternate"
-  | "ppbb";
-
-interface Strategy {
-  id: StrategyId;
-  name: string;
-}
-
-interface RoundHistory {
-  round: number;
-  bet: number;
-  betTarget: BetTarget;
-  result: GameResult;
-  balanceBefore: number;
-  balanceAfter: number;
-  action: string;
-}
-
-interface SimulationResults {
-  finalBalance: number;
-  profit: number;
-  totalRounds: number;
-  wins: number;
-  losses: number;
-  ties: number;
-}
+import {
+  Strategy,
+  GameResult,
+  StrategyId,
+  BetTarget,
+  SimulationResults,
+  RoundHistory,
+} from "../type";
 
 // 定数
 const INITIAL_BALANCE = 100000;
